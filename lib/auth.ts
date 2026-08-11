@@ -16,7 +16,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  debug: true, // TEMP — remove once confirmed working
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
