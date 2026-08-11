@@ -16,9 +16,17 @@ type Submission = {
   feedback: string | null;
   submittedAt: string | null;
 };
+type Event = {
+  id: string;
+  title: string;
+  description: string | null;
+  venue: string | null;
+  registrationDeadline: string | null;
+  seats: number | null;
+};
 
 export default function FacultyDashboard() {
-  // --- Attendance state (existing) ---
+  // --- Attendance state ---
   const [subject, setSubject] = useState("");
   const [date, setDate] = useState("");
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -28,7 +36,7 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  // --- Assignments state (new) ---
+  // --- Assignments state ---
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [aTitle, setATitle] = useState("");
   const [aDescription, setADescription] = useState("");
@@ -37,12 +45,22 @@ export default function FacultyDashboard() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [reviewDrafts, setReviewDrafts] = useState<Record<string, { marks: string; feedback: string }>>({});
 
+  // --- Events state ---
+  const [eventsList, setEventsList] = useState<Event[]>([]);
+  const [eTitle, setETitle] = useState("");
+  const [eDescription, setEDescription] = useState("");
+  const [eVenue, setEVenue] = useState("");
+  const [eDeadline, setEDeadline] = useState("");
+  const [eSeats, setESeats] = useState("");
+
   useEffect(() => {
     fetchSessions();
     fetchStudents();
     fetchAssignments();
+    fetchEvents();
   }, []);
 
+  // ===== ATTENDANCE FUNCTIONS =====
   async function fetchSessions() {
     const res = await fetch("/api/attendance/sessions");
     const data = await res.json();
@@ -53,12 +71,6 @@ export default function FacultyDashboard() {
     const res = await fetch("/api/users/students");
     const data = await res.json();
     if (res.ok) setStudents(data.students);
-  }
-
-  async function fetchAssignments() {
-    const res = await fetch("/api/assignments");
-    const data = await res.json();
-    if (res.ok) setAssignments(data.assignments);
   }
 
   async function handleCreateSession(e: React.FormEvent) {
@@ -115,6 +127,13 @@ export default function FacultyDashboard() {
     } else {
       setMessage("Failed to save attendance");
     }
+  }
+
+  // ===== ASSIGNMENTS FUNCTIONS =====
+  async function fetchAssignments() {
+    const res = await fetch("/api/assignments");
+    const data = await res.json();
+    if (res.ok) setAssignments(data.assignments);
   }
 
   async function handleCreateAssignment(e: React.FormEvent) {
@@ -185,6 +204,46 @@ export default function FacultyDashboard() {
     } else {
       setMessage("Failed to save review");
     }
+  }
+
+  // ===== EVENTS FUNCTIONS =====
+  async function fetchEvents() {
+    const res = await fetch("/api/events");
+    const data = await res.json();
+    if (res.ok) setEventsList(data.events);
+  }
+
+  async function handleCreateEvent(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    const res = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: eTitle,
+        description: eDescription,
+        venue: eVenue,
+        registrationDeadline: eDeadline ? new Date(eDeadline).toISOString() : undefined,
+        seats: eSeats ? Number(eSeats) : undefined,
+      }),
+    });
+
+    setLoading(false);
+
+    if (!res.ok) {
+      setMessage("Failed to create event");
+      return;
+    }
+
+    setETitle("");
+    setEDescription("");
+    setEVenue("");
+    setEDeadline("");
+    setESeats("");
+    fetchEvents();
+    setMessage("Event created");
   }
 
   return (
@@ -384,6 +443,74 @@ export default function FacultyDashboard() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* ===== EVENTS SECTION ===== */}
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Events</h2>
+
+        <div className="border border-neutral-800 rounded p-4 max-w-md">
+          <h3 className="text-lg font-semibold mb-3">Create Event</h3>
+          <form onSubmit={handleCreateEvent} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Event title"
+              value={eTitle}
+              onChange={(e) => setETitle(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              required
+            />
+            <textarea
+              placeholder="Description"
+              value={eDescription}
+              onChange={(e) => setEDescription(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              rows={2}
+            />
+            <input
+              type="text"
+              placeholder="Venue"
+              value={eVenue}
+              onChange={(e) => setEVenue(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+            />
+            <input
+              type="datetime-local"
+              value={eDeadline}
+              onChange={(e) => setEDeadline(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+            />
+            <input
+              type="number"
+              placeholder="Seats available"
+              value={eSeats}
+              onChange={(e) => setESeats(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
+            >
+              {loading ? "Creating..." : "Create Event"}
+            </button>
+          </form>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-3">All Events</h3>
+          <div className="space-y-2">
+            {eventsList.length === 0 && <p className="text-neutral-500">No events yet.</p>}
+            {eventsList.map((ev) => (
+              <div key={ev.id} className="border border-neutral-800 rounded p-3">
+                <p className="font-semibold">{ev.title}</p>
+                <p className="text-sm text-neutral-400">
+                  {ev.venue} {ev.seats ? `— ${ev.seats} seats` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   );
