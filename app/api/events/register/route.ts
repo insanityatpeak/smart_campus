@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { eventRegistrations } from "@/db/schema";
+import { eventRegistrations, notifications } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -71,6 +71,13 @@ export async function POST(req: Request) {
       .values({ eventId, studentId: session.user.id, qrCode: qrPayload })
       .returning();
   }
+
+  // Notify the student their registration went through
+  await db.insert(notifications).values({
+    userId: session.user.id,
+    title: "Event registration confirmed",
+    message: "You're registered. Check your dashboard for your QR ticket.",
+  });
 
   return NextResponse.json({ registration: result }, { status: 201 });
 }

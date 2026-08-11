@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { signOut } from "next-auth/react";
+import NotificationBell from "@/components/NotificationBell";
 
 type Student = { id: string; name: string; email: string };
 type Session = { id: string; subject: string; date: string };
@@ -249,14 +250,17 @@ export default function FacultyDashboard() {
   return (
     <div className="min-h-screen bg-black text-white p-8 space-y-10">
       <div className="flex items-center justify-between">
-  <h1 className="text-2xl font-bold">Faculty Dashboard</h1>
-  <button
-    onClick={() => signOut({ callbackUrl: "/" })}
-    className="px-4 py-2 rounded border border-neutral-700 text-sm"
-  >
-    Log out
-  </button>
-</div>
+        <h1 className="text-2xl font-bold">Faculty Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="px-4 py-2 rounded border border-neutral-700 text-sm"
+          >
+            Log out
+          </button>
+        </div>
+      </div>
 
       {/* ===== ATTENDANCE SECTION ===== */}
       <section className="space-y-6">

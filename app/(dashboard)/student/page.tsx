@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AttendanceSummary from "./attendance-summary";
 import StudentAssignments from "./assignments";
 import StudentEvents from "./events";
+import NotificationBell from "@/components/NotificationBell";
 
 export default async function StudentDashboard() {
   const session = await auth();
@@ -13,10 +14,13 @@ export default async function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Welcome, {session.user?.name}</h1>
-        <p className="text-neutral-400">Role: {session.user?.role}</p>
-        <p className="text-neutral-400">Email: {session.user?.email}</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Welcome, {session.user?.name}</h1>
+          <p className="text-neutral-400">Role: {session.user?.role}</p>
+          <p className="text-neutral-400">Email: {session.user?.email}</p>
+        </div>
+        <NotificationBell />
       </div>
 
       <AttendanceSummary />

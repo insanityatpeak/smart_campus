@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { submissions, assignments, users, activityLogs } from "@/db/schema";
+import { submissions, assignments, users, activityLogs, notifications } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -169,6 +169,13 @@ export async function PATCH(req: Request) {
     userId: session.user.id,
     action: "graded_submission",
     details: `Marks: ${parsed.data.marks}, Submission: ${parsed.data.submissionId}`,
+  });
+
+  // Notify the student their submission was graded
+  await db.insert(notifications).values({
+    userId: updated.studentId,
+    title: "Assignment graded",
+    message: `You received ${parsed.data.marks}/100. ${parsed.data.feedback || ""}`.trim(),
   });
 
   return NextResponse.json({ submission: updated });
