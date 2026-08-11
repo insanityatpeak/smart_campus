@@ -2,6 +2,7 @@ import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import AttendanceSummary from "./attendance-summary";
 import StudentAssignments from "./assignments";
+import StudentEvents from "./events";
 
 export default async function StudentDashboard() {
   const session = await auth();
@@ -20,6 +21,7 @@ export default async function StudentDashboard() {
 
       <AttendanceSummary />
       <StudentAssignments />
+      <StudentEvents />
 
       <form
         action={async () => {
@@ -33,4 +35,4 @@ export default async function StudentDashboard() {
       </form>
     </div>
   );
-} 
+}
