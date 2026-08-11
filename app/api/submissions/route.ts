@@ -206,6 +206,12 @@ export async function PATCH(req: Request) {
     .where(eq(submissions.id, parsed.data.submissionId))
     .returning();
 
+  // Guard against a race condition — e.g. the submission was deleted
+  // between our ownership check above and this update running.
+  if (!updated) {
+    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  }
+
   // Audit log — records who graded what, for accountability
   await db.insert(activityLogs).values({
     userId: session.user.id,

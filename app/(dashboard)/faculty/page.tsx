@@ -101,12 +101,27 @@ export default function FacultyDashboard() {
     showToast("Session created", "success");
   }
 
-  function openMarkingFor(sessionId: string) {
-    setActiveSessionId(sessionId);
-    const defaults: Record<string, boolean> = {};
-    students.forEach((s) => (defaults[s.id] = false));
-    setAttendance(defaults);
+async function openMarkingFor(sessionId: string) {
+  setActiveSessionId(sessionId);
+
+  // Default everyone to absent first, so the checkboxes have something
+  // to show immediately while we fetch any previously saved marks.
+  const defaults: Record<string, boolean> = {};
+  students.forEach((s) => (defaults[s.id] = false));
+
+  // Pull existing records for this session and overlay them on the
+  // defaults — otherwise re-opening a previously marked session wipes
+  // everyone back to "absent" until re-checked by hand.
+  const res = await fetch(`/api/attendance/records?sessionId=${sessionId}`);
+  if (res.ok) {
+    const data = await res.json();
+    data.records.forEach((r: { studentId: string; present: boolean }) => {
+      defaults[r.studentId] = r.present;
+    });
   }
+
+  setAttendance(defaults);
+}
 
   async function handleSaveAttendance() {
     if (!activeSessionId) return;

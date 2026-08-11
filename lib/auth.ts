@@ -7,6 +7,7 @@ import { users, accounts, sessions, verificationTokens } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
+import { rateLimit } from "./rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -29,6 +30,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        // Block brute-force login attempts — 5 tries per email per minute
+        if (!rateLimit(`login:${credentials.email}`, 5, 60_000)) {
+          return null;
+        }
 
         const [user] = await db
           .select()

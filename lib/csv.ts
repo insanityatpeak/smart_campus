@@ -5,9 +5,17 @@ export function downloadCSV(filename: string, rows: Record<string, string | numb
 
   const headers = Object.keys(rows[0]);
 
-  // Escape values containing commas, quotes, or newlines per CSV spec
+  // Escape values containing commas, quotes, or newlines per CSV spec.
+  // Also guard against formula injection: if a value starts with
+  // =, +, -, or @, Excel/Sheets will try to execute it as a formula
+  // when the file is opened — prefixing with a single quote defuses that.
   const escape = (value: unknown) => {
-    const str = String(value ?? "");
+    let str = String(value ?? "");
+
+    if (/^[=+\-@]/.test(str)) {
+      str = `'${str}`;
+    }
+
     if (str.includes(",") || str.includes('"') || str.includes("\n")) {
       return `"${str.replace(/"/g, '""')}"`;
     }

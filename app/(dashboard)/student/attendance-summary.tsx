@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Record = {
+type AttendanceRecord = {
   id: string;
   present: boolean;
   subject: string;
@@ -10,7 +10,7 @@ type Record = {
 };
 
 export default function AttendanceSummary() {
-  const [records, setRecords] = useState<Record[]>([]);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [percentage, setPercentage] = useState(0);
   const [total, setTotal] = useState(0);
   const [presentCount, setPresentCount] = useState(0);

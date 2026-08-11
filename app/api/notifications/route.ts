@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { notifications } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 // GET: fetch the logged-in user's notifications, newest first
 export async function GET() {
@@ -30,11 +30,22 @@ export async function PATCH(req: Request) {
 
   const { notificationId } = await req.json();
 
+  // Only mark it read if it actually belongs to the requesting user —
+  // otherwise anyone could flip another user's notification by guessing an id.
   const [updated] = await db
     .update(notifications)
     .set({ read: true })
-    .where(eq(notifications.id, notificationId))
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.userId, session.user.id)
+      )
+    )
     .returning();
+
+  if (!updated) {
+    return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+  }
 
   return NextResponse.json({ notification: updated });
 }
