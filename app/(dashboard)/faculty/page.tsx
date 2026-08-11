@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { signOut } from "next-auth/react";
 import NotificationBell from "@/components/NotificationBell";
+import { downloadCSV } from "@/lib/csv";
 
 type Student = { id: string; name: string; email: string };
 type Session = { id: string; subject: string; date: string };
@@ -328,6 +329,21 @@ export default function FacultyDashboard() {
               ))}
             </div>
             <button
+              onClick={() =>
+                downloadCSV(
+                  `attendance-${sessions.find((sess) => sess.id === activeSessionId)?.subject || "session"}.csv`,
+                  students.map((s) => ({
+                    name: s.name,
+                    email: s.email,
+                    present: attendance[s.id] ? "Present" : "Absent",
+                  }))
+                )
+              }
+              className="mt-3 mr-2 px-3 py-1 rounded border border-neutral-700 text-sm"
+            >
+              Export CSV
+            </button>
+            <button
               onClick={handleSaveAttendance}
               disabled={loading}
               className="mt-3 px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
@@ -398,6 +414,23 @@ export default function FacultyDashboard() {
         {activeAssignmentId && (
           <div className="border border-neutral-800 rounded p-4 max-w-2xl">
             <h3 className="text-lg font-semibold mb-3">Submissions</h3>
+             <button
+      onClick={() =>
+        downloadCSV(
+          `submissions-${assignments.find((a) => a.id === activeAssignmentId)?.title || "assignment"}.csv`,
+          submissions.map((s) => ({
+            student: s.studentName,
+            status: s.status,
+            marks: s.marks ?? "",
+            feedback: s.feedback ?? "",
+            submittedAt: s.submittedAt ?? "",
+          }))
+        )
+      }
+      className="mb-3 px-3 py-1 rounded border border-neutral-700 text-sm"
+    >
+      Export CSV
+    </button>
             {submissions.length === 0 && <p className="text-neutral-500">No submissions yet.</p>}
             <div className="space-y-3">
               {submissions.map((s) => (
