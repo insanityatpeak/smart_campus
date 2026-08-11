@@ -98,9 +98,9 @@ Login is required to access all dashboard features. Use these accounts to explor
 
 | Role | Email | Password |
 |---|---|---|
-| Student | `student@calypso.test` | *(see submission notes)* |
-| Faculty | `faculty@calypso.test` | *(see submission notes)* |
-| Admin | `admin@calypso.test` | *(see submission notes)* |
+| Student | `student@calypso.test` | 'Test1234!' |
+| Faculty | `faculty@calypso.test` | 'Test1234!' |
+| Admin | `admin@calypso.test` | 'Test1234!' |
 
 > No payment integration is used in this project — sandbox payment credentials are not applicable.
 
