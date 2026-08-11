@@ -16,15 +16,16 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 150 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: text("password_hash"), // null if OAuth-only
+  passwordHash: text("password_hash"),
   role: roleEnum("role").notNull().default("student"),
   emailVerified: timestamp("email_verified"),
-  profilePicture: text("profile_picture"),
+  image: text("image"), // required by NextAuth adapter for OAuth profile pictures
+  profilePicture: text("profile_picture"), // kept for our own manual-upload use case
   phone: varchar("phone", { length: 20 }),
   rollNumber: varchar("roll_number", { length: 50 }),
   departmentId: uuid("department_id").references(() => departments.id),
   semester: integer("semester"),
-  skills: text("skills"), // comma-separated for MVP
+  skills: text("skills"),
   linkedin: text("linkedin"),
   github: text("github"),
   resumeUrl: text("resume_url"),
