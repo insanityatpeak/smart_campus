@@ -11,6 +11,7 @@ import { authConfig } from "./auth.config";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   adapter: DrizzleAdapter(db),
+  debug: true, // TEMP — prints real error to Vercel logs, remove once fixed
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
