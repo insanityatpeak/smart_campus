@@ -40,11 +40,11 @@ export default function SignupPage() {
 
     // Auto sign-in after signup
     await signIn("credentials", {
-      email: form.email,
-      password: form.password,
-      redirect: true,
-      callbackUrl: "/student",
-    });
+  email: form.email,
+  password: form.password,
+  redirect: true,
+  callbackUrl: `/${form.role}`,
+});
   }
 
   return (
