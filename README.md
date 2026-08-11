@@ -5,6 +5,7 @@ Built for **DevFusion 4.0** hackathon.
 A centralized platform for colleges to manage attendance, assignments, events, and role-based dashboards — replacing scattered WhatsApp groups and spreadsheets.
 
 **Live app:** https://smart-campus-drab.vercel.app
+"Test credentials provided separately in the submission form"
 
 ---
 
