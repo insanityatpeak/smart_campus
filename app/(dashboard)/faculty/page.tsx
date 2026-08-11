@@ -4,8 +4,21 @@ import { useEffect, useState } from "react";
 
 type Student = { id: string; name: string; email: string };
 type Session = { id: string; subject: string; date: string };
+type Assignment = { id: string; title: string; description: string | null; deadline: string };
+type Submission = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  fileUrl: string | null;
+  githubLink: string | null;
+  status: string;
+  marks: number | null;
+  feedback: string | null;
+  submittedAt: string | null;
+};
 
 export default function FacultyDashboard() {
+  // --- Attendance state (existing) ---
   const [subject, setSubject] = useState("");
   const [date, setDate] = useState("");
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -15,9 +28,19 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // --- Assignments state (new) ---
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [aTitle, setATitle] = useState("");
+  const [aDescription, setADescription] = useState("");
+  const [aDeadline, setADeadline] = useState("");
+  const [activeAssignmentId, setActiveAssignmentId] = useState<string | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [reviewDrafts, setReviewDrafts] = useState<Record<string, { marks: string; feedback: string }>>({});
+
   useEffect(() => {
     fetchSessions();
     fetchStudents();
+    fetchAssignments();
   }, []);
 
   async function fetchSessions() {
@@ -30,6 +53,12 @@ export default function FacultyDashboard() {
     const res = await fetch("/api/users/students");
     const data = await res.json();
     if (res.ok) setStudents(data.students);
+  }
+
+  async function fetchAssignments() {
+    const res = await fetch("/api/assignments");
+    const data = await res.json();
+    if (res.ok) setAssignments(data.assignments);
   }
 
   async function handleCreateSession(e: React.FormEvent) {
@@ -58,7 +87,6 @@ export default function FacultyDashboard() {
 
   function openMarkingFor(sessionId: string) {
     setActiveSessionId(sessionId);
-    // default everyone to absent, faculty flips to present
     const defaults: Record<string, boolean> = {};
     students.forEach((s) => (defaults[s.id] = false));
     setAttendance(defaults);
@@ -89,97 +117,274 @@ export default function FacultyDashboard() {
     }
   }
 
+  async function handleCreateAssignment(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
+
+    const res = await fetch("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: aTitle,
+        description: aDescription,
+        deadline: new Date(aDeadline).toISOString(),
+      }),
+    });
+
+    setLoading(false);
+
+    if (!res.ok) {
+      setMessage("Failed to create assignment");
+      return;
+    }
+
+    setATitle("");
+    setADescription("");
+    setADeadline("");
+    fetchAssignments();
+    setMessage("Assignment created");
+  }
+
+  async function openSubmissionsFor(assignmentId: string) {
+    setActiveAssignmentId(assignmentId);
+    const res = await fetch(`/api/submissions?assignmentId=${assignmentId}`);
+    const data = await res.json();
+    if (res.ok) {
+      setSubmissions(data.submissions);
+      const drafts: Record<string, { marks: string; feedback: string }> = {};
+      data.submissions.forEach((s: Submission) => {
+        drafts[s.id] = {
+          marks: s.marks?.toString() || "",
+          feedback: s.feedback || "",
+        };
+      });
+      setReviewDrafts(drafts);
+    }
+  }
+
+  async function handleReview(submissionId: string) {
+    const draft = reviewDrafts[submissionId];
+    if (!draft || draft.marks === "") return;
+
+    setLoading(true);
+    const res = await fetch("/api/submissions", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submissionId,
+        marks: Number(draft.marks),
+        feedback: draft.feedback,
+      }),
+    });
+    setLoading(false);
+
+    if (res.ok) {
+      setMessage("Review saved");
+      if (activeAssignmentId) openSubmissionsFor(activeAssignmentId);
+    } else {
+      setMessage("Failed to save review");
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white p-8 space-y-8">
+    <div className="min-h-screen bg-black text-white p-8 space-y-10">
       <h1 className="text-2xl font-bold">Faculty Dashboard</h1>
 
       {message && <p className="text-green-400">{message}</p>}
 
-      {/* Create session */}
-      <div className="border border-neutral-800 rounded p-4 max-w-md">
-        <h2 className="text-lg font-semibold mb-3">Create Attendance Session</h2>
-        <form onSubmit={handleCreateSession} className="space-y-3">
-          <input
-            type="text"
-            placeholder="Subject (e.g. Data Structures)"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
-            required
-          />
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
-            required
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
-          >
-            {loading ? "Creating..." : "Create Session"}
-          </button>
-        </form>
-      </div>
+      {/* ===== ATTENDANCE SECTION ===== */}
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Attendance</h2>
 
-      {/* List sessions */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Your Sessions</h2>
-        <div className="space-y-2">
-          {sessions.length === 0 && (
-            <p className="text-neutral-500">No sessions yet.</p>
-          )}
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center justify-between border border-neutral-800 rounded p-3"
-            >
-              <span>
-                {s.subject} — {s.date}
-              </span>
-              <button
-                onClick={() => openMarkingFor(s.id)}
-                className="px-3 py-1 rounded border border-neutral-700 text-sm"
-              >
-                Mark Attendance
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Marking panel */}
-      {activeSessionId && (
         <div className="border border-neutral-800 rounded p-4 max-w-md">
-          <h2 className="text-lg font-semibold mb-3">Mark Attendance</h2>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {students.map((s) => (
-              <label
-                key={s.id}
-                className="flex items-center justify-between p-2 border border-neutral-800 rounded"
-              >
-                <span>{s.name}</span>
-                <input
-                  type="checkbox"
-                  checked={attendance[s.id] || false}
-                  onChange={(e) =>
-                    setAttendance({ ...attendance, [s.id]: e.target.checked })
-                  }
-                />
-              </label>
+          <h3 className="text-lg font-semibold mb-3">Create Attendance Session</h3>
+          <form onSubmit={handleCreateSession} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Subject (e.g. Data Structures)"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              required
+            />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
+            >
+              {loading ? "Creating..." : "Create Session"}
+            </button>
+          </form>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Your Sessions</h3>
+          <div className="space-y-2">
+            {sessions.length === 0 && <p className="text-neutral-500">No sessions yet.</p>}
+            {sessions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between border border-neutral-800 rounded p-3">
+                <span>{s.subject} — {s.date}</span>
+                <button
+                  onClick={() => openMarkingFor(s.id)}
+                  className="px-3 py-1 rounded border border-neutral-700 text-sm"
+                >
+                  Mark Attendance
+                </button>
+              </div>
             ))}
           </div>
-          <button
-            onClick={handleSaveAttendance}
-            disabled={loading}
-            className="mt-3 px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
-          >
-            {loading ? "Saving..." : "Save Attendance"}
-          </button>
         </div>
-      )}
+
+        {activeSessionId && (
+          <div className="border border-neutral-800 rounded p-4 max-w-md">
+            <h3 className="text-lg font-semibold mb-3">Mark Attendance</h3>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {students.map((s) => (
+                <label key={s.id} className="flex items-center justify-between p-2 border border-neutral-800 rounded">
+                  <span>{s.name}</span>
+                  <input
+                    type="checkbox"
+                    checked={attendance[s.id] || false}
+                    onChange={(e) => setAttendance({ ...attendance, [s.id]: e.target.checked })}
+                  />
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={handleSaveAttendance}
+              disabled={loading}
+              className="mt-3 px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
+            >
+              {loading ? "Saving..." : "Save Attendance"}
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* ===== ASSIGNMENTS SECTION ===== */}
+      <section className="space-y-6">
+        <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Assignments</h2>
+
+        <div className="border border-neutral-800 rounded p-4 max-w-md">
+          <h3 className="text-lg font-semibold mb-3">Create Assignment</h3>
+          <form onSubmit={handleCreateAssignment} className="space-y-3">
+            <input
+              type="text"
+              placeholder="Title"
+              value={aTitle}
+              onChange={(e) => setATitle(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              required
+            />
+            <textarea
+              placeholder="Description"
+              value={aDescription}
+              onChange={(e) => setADescription(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              rows={3}
+            />
+            <input
+              type="datetime-local"
+              value={aDeadline}
+              onChange={(e) => setADeadline(e.target.value)}
+              className="w-full p-2 rounded bg-neutral-900 border border-neutral-700"
+              required
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 rounded bg-white text-black font-semibold disabled:opacity-50"
+            >
+              {loading ? "Creating..." : "Create Assignment"}
+            </button>
+          </form>
+        </div>
+
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Your Assignments</h3>
+          <div className="space-y-2">
+            {assignments.length === 0 && <p className="text-neutral-500">No assignments yet.</p>}
+            {assignments.map((a) => (
+              <div key={a.id} className="flex items-center justify-between border border-neutral-800 rounded p-3">
+                <span>{a.title} — due {new Date(a.deadline).toLocaleString()}</span>
+                <button
+                  onClick={() => openSubmissionsFor(a.id)}
+                  className="px-3 py-1 rounded border border-neutral-700 text-sm"
+                >
+                  View Submissions
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {activeAssignmentId && (
+          <div className="border border-neutral-800 rounded p-4 max-w-2xl">
+            <h3 className="text-lg font-semibold mb-3">Submissions</h3>
+            {submissions.length === 0 && <p className="text-neutral-500">No submissions yet.</p>}
+            <div className="space-y-3">
+              {submissions.map((s) => (
+                <div key={s.id} className="border border-neutral-800 rounded p-3 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="font-semibold">{s.studentName}</span>
+                    <span className="text-sm text-neutral-400">{s.status}</span>
+                  </div>
+                  {s.githubLink && (
+                    <a href={s.githubLink} target="_blank" className="text-sm underline block">
+                      {s.githubLink}
+                    </a>
+                  )}
+                  {s.fileUrl && (
+                    <a href={s.fileUrl} target="_blank" className="text-sm underline block">
+                      {s.fileUrl}
+                    </a>
+                  )}
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      placeholder="Marks"
+                      value={reviewDrafts[s.id]?.marks || ""}
+                      onChange={(e) =>
+                        setReviewDrafts({
+                          ...reviewDrafts,
+                          [s.id]: { ...reviewDrafts[s.id], marks: e.target.value },
+                        })
+                      }
+                      className="w-24 p-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Feedback"
+                      value={reviewDrafts[s.id]?.feedback || ""}
+                      onChange={(e) =>
+                        setReviewDrafts({
+                          ...reviewDrafts,
+                          [s.id]: { ...reviewDrafts[s.id], feedback: e.target.value },
+                        })
+                      }
+                      className="flex-1 p-1 rounded bg-neutral-900 border border-neutral-700 text-sm"
+                    />
+                    <button
+                      onClick={() => handleReview(s.id)}
+                      className="px-3 py-1 rounded bg-white text-black text-sm font-semibold"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
