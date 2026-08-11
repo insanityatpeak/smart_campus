@@ -4,6 +4,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { rateLimit } from "@/lib/rate-limit";
 
 const signupSchema = z.object({
   name: z.string().min(2),
@@ -14,6 +15,15 @@ const signupSchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    // Block IPs making too many signup attempts (brute-force protection)
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    if (!rateLimit(`signup:${ip}`, 5, 60_000)) {
+      return NextResponse.json(
+        { error: "Too many attempts, try again later" },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const parsed = signupSchema.safeParse(body);
 
@@ -26,6 +36,7 @@ export async function POST(req: Request) {
 
     const { name, email, password, role } = parsed.data;
 
+    // Prevent duplicate accounts
     const [existing] = await db
       .select()
       .from(users)
@@ -39,6 +50,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Never store plaintext passwords — hash before insert
     const passwordHash = await bcrypt.hash(password, 10);
 
     const [newUser] = await db

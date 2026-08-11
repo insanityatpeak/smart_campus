@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { submissions, assignments, users } from "@/db/schema";
+import { submissions, assignments, users, activityLogs } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
@@ -163,6 +163,13 @@ export async function PATCH(req: Request) {
     })
     .where(eq(submissions.id, parsed.data.submissionId))
     .returning();
+
+  // Audit log — records who graded what, for accountability
+  await db.insert(activityLogs).values({
+    userId: session.user.id,
+    action: "graded_submission",
+    details: `Marks: ${parsed.data.marks}, Submission: ${parsed.data.submissionId}`,
+  });
 
   return NextResponse.json({ submission: updated });
 }
