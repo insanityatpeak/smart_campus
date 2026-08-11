@@ -48,7 +48,27 @@ export async function GET(req: Request) {
     return NextResponse.json({ submission: own || null });
   }
 
-  // faculty/admin: all submissions for this assignment, with student names
+  // faculty/admin: all submissions for this assignment, with student names.
+  // Confirm the assignment actually belongs to this faculty member before
+  // handing back the roster of who submitted what — otherwise any faculty
+  // account could view another faculty's assignment submissions.
+  if (session.user.role === "faculty") {
+    const [assignment] = await db
+      .select()
+      .from(assignments)
+      .where(eq(assignments.id, assignmentId))
+      .limit(1);
+
+    if (!assignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
+    }
+
+    if (assignment.facultyId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+  }
+  // admins can view any assignment's submissions, no extra check needed
+
   const all = await db
     .select({
       id: submissions.id,
@@ -152,6 +172,28 @@ export async function PATCH(req: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Confirm the submission belongs to an assignment created by this faculty
+  // member before allowing the grade to be written — otherwise any faculty
+  // account could overwrite marks on another faculty's assignment.
+  const [target] = await db
+    .select({
+      submissionId: submissions.id,
+      studentId: submissions.studentId,
+      assignmentFacultyId: assignments.facultyId,
+    })
+    .from(submissions)
+    .innerJoin(assignments, eq(submissions.assignmentId, assignments.id))
+    .where(eq(submissions.id, parsed.data.submissionId))
+    .limit(1);
+
+  if (!target) {
+    return NextResponse.json({ error: "Submission not found" }, { status: 404 });
+  }
+
+  if (session.user.role !== "admin" && target.assignmentFacultyId !== session.user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
   const [updated] = await db

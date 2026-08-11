@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { attendanceRecords, attendanceSessions, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 
 const markAttendanceSchema = z.object({
@@ -26,7 +26,28 @@ export async function GET(req: Request) {
   const sessionId = searchParams.get("sessionId");
 
   if (sessionId) {
-    // Faculty fetching records for a specific session (to see who's marked)
+    // Faculty/admin fetching records for a specific session (to see who's marked).
+    // Must confirm the caller is faculty/admin AND that this session belongs
+    // to them — otherwise any faculty account could view any other faculty's
+    // class roster just by guessing a sessionId.
+    if (!["faculty", "admin"].includes(session.user.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const [attendanceSession] = await db
+      .select()
+      .from(attendanceSessions)
+      .where(eq(attendanceSessions.id, sessionId))
+      .limit(1);
+
+    if (!attendanceSession) {
+      return NextResponse.json({ error: "Session not found" }, { status: 404 });
+    }
+
+    if (session.user.role !== "admin" && attendanceSession.facultyId !== session.user.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const records = await db
       .select({
         id: attendanceRecords.id,
@@ -76,6 +97,22 @@ export async function POST(req: Request) {
   }
 
   const { sessionId, records } = parsed.data;
+
+  // Same ownership check on the write path — a faculty member should only
+  // be able to mark attendance for sessions they created themselves.
+  const [attendanceSession] = await db
+    .select()
+    .from(attendanceSessions)
+    .where(eq(attendanceSessions.id, sessionId))
+    .limit(1);
+
+  if (!attendanceSession) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
+  }
+
+  if (session.user.role !== "admin" && attendanceSession.facultyId !== session.user.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
 
   // Delete existing records for this session first (allows re-marking/editing)
   await db.delete(attendanceRecords).where(eq(attendanceRecords.sessionId, sessionId));

@@ -9,6 +9,10 @@ const registerSchema = z.object({
   eventId: z.string().uuid(),
 });
 
+const cancelSchema = z.object({
+  registrationId: z.string().uuid(),
+});
+
 // GET: student's own registrations (all events they've registered for)
 export async function GET() {
   const session = await auth();
@@ -90,13 +94,28 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json();
-  const { registrationId } = body;
+  const parsed = cancelSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
 
+  // Only cancel a registration that actually belongs to the requesting
+  // student — otherwise any student could cancel any other student's
+  // event registration just by guessing/obtaining a registrationId.
   const [updated] = await db
     .update(eventRegistrations)
     .set({ status: "cancelled" })
-    .where(eq(eventRegistrations.id, registrationId))
+    .where(
+      and(
+        eq(eventRegistrations.id, parsed.data.registrationId),
+        eq(eventRegistrations.studentId, session.user.id)
+      )
+    )
     .returning();
+
+  if (!updated) {
+    return NextResponse.json({ error: "Registration not found" }, { status: 404 });
+  }
 
   return NextResponse.json({ registration: updated });
 }
