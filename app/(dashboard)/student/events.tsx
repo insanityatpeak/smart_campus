@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 type Event = {
   id: string;
@@ -22,7 +23,7 @@ export default function StudentEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetchEvents();
@@ -49,7 +50,6 @@ export default function StudentEvents() {
 
   async function handleRegister(eventId: string) {
     setLoading(true);
-    setMessage("");
 
     const res = await fetch("/api/events/register", {
       method: "POST",
@@ -60,10 +60,10 @@ export default function StudentEvents() {
     setLoading(false);
 
     if (res.ok) {
-      setMessage("Registered successfully");
+      showToast("Registered successfully", "success");
       fetchRegistrations();
     } else {
-      setMessage("Registration failed");
+      showToast("Registration failed", "error");
     }
   }
 
@@ -77,16 +77,16 @@ export default function StudentEvents() {
     setLoading(false);
 
     if (res.ok) {
-      setMessage("Registration cancelled");
+      showToast("Registration cancelled", "success");
       fetchRegistrations();
+    } else {
+      showToast("Failed to cancel registration", "error");
     }
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold border-b border-neutral-800 pb-2">Events</h2>
-
-      {message && <p className="text-sm text-green-400">{message}</p>}
 
       <div className="space-y-3">
         {events.length === 0 && <p className="text-neutral-500">No events yet.</p>}

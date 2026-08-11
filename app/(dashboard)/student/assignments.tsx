@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/Toast";
 
 type Assignment = {
   id: string;
@@ -25,7 +26,7 @@ export default function StudentAssignments() {
   const [githubLink, setGithubLink] = useState("");
   const [fileUrl, setFileUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetch("/api/assignments")
@@ -35,7 +36,6 @@ export default function StudentAssignments() {
 
   async function openAssignment(id: string) {
     setActiveId(id);
-    setMessage("");
     const res = await fetch(`/api/submissions?assignmentId=${id}`);
     const data = await res.json();
     setMySubmission(data.submission);
@@ -47,7 +47,6 @@ export default function StudentAssignments() {
     e.preventDefault();
     if (!activeId) return;
     setLoading(true);
-    setMessage("");
 
     const res = await fetch("/api/submissions", {
       method: "POST",
@@ -58,10 +57,10 @@ export default function StudentAssignments() {
     setLoading(false);
 
     if (res.ok) {
-      setMessage("Submitted successfully");
+      showToast("Submitted successfully", "success");
       openAssignment(activeId);
     } else {
-      setMessage("Submission failed");
+      showToast("Submission failed", "error");
     }
   }
 
@@ -135,8 +134,6 @@ export default function StudentAssignments() {
                     </form>
                   </>
                 )}
-
-                {message && <p className="text-sm text-neutral-400">{message}</p>}
               </div>
             )}
           </div>

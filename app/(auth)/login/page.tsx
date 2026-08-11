@@ -21,14 +21,20 @@ export default function LoginPage() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (res?.error) {
+      setLoading(false);
       setError("Invalid email or password");
       return;
     }
 
-    router.push("/student");
+    // Sign-in succeeded, but we don't know the role yet — fetch the fresh
+    // session to read it, then send the user to their correct dashboard.
+    const sessionRes = await fetch("/api/auth/session");
+    const session = await sessionRes.json();
+    const role = session?.user?.role || "student";
+
+    setLoading(false);
+    router.push(`/${role}`);
     router.refresh();
   }
 

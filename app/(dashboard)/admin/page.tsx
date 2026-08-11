@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { signOut } from "next-auth/react";
 
 type Stats = {
   users: { totalStudents: number; totalFaculty: number; totalCoordinators: number; totalAdmins: number; total: number };
@@ -57,7 +58,15 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8 space-y-10">
-      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+      <div className="flex items-center justify-between">
+  <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+  <button
+    onClick={() => signOut({ callbackUrl: "/" })}
+    className="px-4 py-2 rounded border border-neutral-700 text-sm"
+  >
+    Log out
+  </button>
+</div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/Toast";
+import { signOut } from "next-auth/react";
 
 type Student = { id: string; name: string; email: string };
 type Session = { id: string; subject: string; date: string };
@@ -26,6 +28,8 @@ type Event = {
 };
 
 export default function FacultyDashboard() {
+  const { showToast } = useToast();
+
   // --- Attendance state ---
   const [subject, setSubject] = useState("");
   const [date, setDate] = useState("");
@@ -34,7 +38,6 @@ export default function FacultyDashboard() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
 
   // --- Assignments state ---
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -76,7 +79,6 @@ export default function FacultyDashboard() {
   async function handleCreateSession(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
 
     const res = await fetch("/api/attendance/sessions", {
       method: "POST",
@@ -87,14 +89,14 @@ export default function FacultyDashboard() {
     setLoading(false);
 
     if (!res.ok) {
-      setMessage("Failed to create session");
+      showToast("Failed to create session", "error");
       return;
     }
 
     setSubject("");
     setDate("");
     fetchSessions();
-    setMessage("Session created");
+    showToast("Session created", "success");
   }
 
   function openMarkingFor(sessionId: string) {
@@ -122,10 +124,10 @@ export default function FacultyDashboard() {
     setLoading(false);
 
     if (res.ok) {
-      setMessage("Attendance saved");
+      showToast("Attendance saved", "success");
       setActiveSessionId(null);
     } else {
-      setMessage("Failed to save attendance");
+      showToast("Failed to save attendance", "error");
     }
   }
 
@@ -139,7 +141,6 @@ export default function FacultyDashboard() {
   async function handleCreateAssignment(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
 
     const res = await fetch("/api/assignments", {
       method: "POST",
@@ -154,7 +155,7 @@ export default function FacultyDashboard() {
     setLoading(false);
 
     if (!res.ok) {
-      setMessage("Failed to create assignment");
+      showToast("Failed to create assignment", "error");
       return;
     }
 
@@ -162,7 +163,7 @@ export default function FacultyDashboard() {
     setADescription("");
     setADeadline("");
     fetchAssignments();
-    setMessage("Assignment created");
+    showToast("Assignment created", "success");
   }
 
   async function openSubmissionsFor(assignmentId: string) {
@@ -199,10 +200,10 @@ export default function FacultyDashboard() {
     setLoading(false);
 
     if (res.ok) {
-      setMessage("Review saved");
+      showToast("Review saved", "success");
       if (activeAssignmentId) openSubmissionsFor(activeAssignmentId);
     } else {
-      setMessage("Failed to save review");
+      showToast("Failed to save review", "error");
     }
   }
 
@@ -216,7 +217,6 @@ export default function FacultyDashboard() {
   async function handleCreateEvent(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
 
     const res = await fetch("/api/events", {
       method: "POST",
@@ -233,7 +233,7 @@ export default function FacultyDashboard() {
     setLoading(false);
 
     if (!res.ok) {
-      setMessage("Failed to create event");
+      showToast("Failed to create event", "error");
       return;
     }
 
@@ -243,14 +243,20 @@ export default function FacultyDashboard() {
     setEDeadline("");
     setESeats("");
     fetchEvents();
-    setMessage("Event created");
+    showToast("Event created", "success");
   }
 
   return (
     <div className="min-h-screen bg-black text-white p-8 space-y-10">
-      <h1 className="text-2xl font-bold">Faculty Dashboard</h1>
-
-      {message && <p className="text-green-400">{message}</p>}
+      <div className="flex items-center justify-between">
+  <h1 className="text-2xl font-bold">Faculty Dashboard</h1>
+  <button
+    onClick={() => signOut({ callbackUrl: "/" })}
+    className="px-4 py-2 rounded border border-neutral-700 text-sm"
+  >
+    Log out
+  </button>
+</div>
 
       {/* ===== ATTENDANCE SECTION ===== */}
       <section className="space-y-6">
